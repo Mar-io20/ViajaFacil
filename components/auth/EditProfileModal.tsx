@@ -1,0 +1,119 @@
+import React, { useState, useEffect } from 'react';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
+import { User } from '../../types';
+import { User as UserIcon, Phone, Link as LinkIcon, Camera } from 'lucide-react';
+
+interface EditProfileModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentUser: User;
+  onSave: (updatedData: Partial<User>) => void;
+}
+
+export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, currentUser, onSave }) => {
+  const [name, setName] = useState(currentUser.name);
+  const [phone, setPhone] = useState(currentUser.phone || '');
+  const [avatar, setAvatar] = useState(currentUser.avatar || '');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Reset form when modal opens with new data
+  useEffect(() => {
+    if (isOpen) {
+      setName(currentUser.name);
+      setPhone(currentUser.phone || '');
+      setAvatar(currentUser.avatar || '');
+    }
+  }, [isOpen, currentUser]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    // Simulate API delay
+    setTimeout(() => {
+      onSave({
+        name,
+        phone,
+        avatar
+      });
+      setIsLoading(false);
+      onClose();
+    }, 800);
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Editar Perfil">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        
+        {/* Avatar Preview */}
+        <div className="flex justify-center mb-6">
+          <div className="relative group">
+            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-100 shadow-md bg-gray-50 flex items-center justify-center">
+              {avatar ? (
+                <img src={avatar} alt="Preview" className="w-full h-full object-cover" />
+              ) : (
+                <UserIcon size={40} className="text-gray-300" />
+              )}
+            </div>
+            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <Camera className="text-white" size={24} />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Nome Completo</label>
+          <div className="relative">
+            <UserIcon className="absolute left-3 top-3 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">WhatsApp / Contato</label>
+          <div className="relative">
+            <Phone className="absolute left-3 top-3 text-gray-400" size={18} />
+            <input 
+              type="tel" 
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="(00) 00000-0000"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Foto de Perfil (URL)</label>
+          <div className="relative">
+            <LinkIcon className="absolute left-3 top-3 text-gray-400" size={18} />
+            <input 
+              type="url" 
+              value={avatar}
+              onChange={(e) => setAvatar(e.target.value)}
+              placeholder="https://exemplo.com/foto.jpg"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm text-gray-600"
+            />
+          </div>
+          <p className="text-xs text-gray-400">Cole o link de uma imagem da internet.</p>
+        </div>
+
+        <div className="pt-2 flex gap-3">
+          <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
+            Cancelar
+          </Button>
+          <Button type="submit" className="flex-1" isLoading={isLoading}>
+            Salvar Alterações
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
