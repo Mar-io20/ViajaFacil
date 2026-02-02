@@ -10,7 +10,7 @@ import { Destinations } from './components/sections/Destinations';
 import { Packages } from './components/sections/Packages';
 import { AboutUs } from './components/sections/AboutUs';
 import { User, SearchParams, Trip } from './types';
-import { ShieldCheck, Globe, Heart } from 'lucide-react';
+import { ShieldCheck, Globe, Heart, AlertCircle } from 'lucide-react';
 import { 
   generateGroupCode, 
   subscribeToAuth,
@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
   
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -38,10 +39,6 @@ const App: React.FC = () => {
     const unsubscribe = subscribeToAuth((u) => {
       setUser(u);
       setAuthLoading(false);
-      if (u && !searchRequest) {
-          // Optional: Auto redirect to dashboard on login
-          // setCurrentView('dashboard');
-      }
     });
     return () => unsubscribe();
   }, []);
@@ -49,25 +46,38 @@ const App: React.FC = () => {
   // Firebase Trips Listener
   useEffect(() => {
     if (user) {
-      const unsubscribeTrips = subscribeToTrips(user.id, (updatedTrips) => {
-        setTrips(updatedTrips);
-        // If we are viewing a trip, update it in real-time
-        if (selectedTrip) {
-            const updatedSelected = updatedTrips.find(t => t.id === selectedTrip.id);
-            if (updatedSelected) {
-                setSelectedTrip(updatedSelected);
-            } else if (currentView === 'trip-details') {
-                // Trip was deleted while viewing
-                setCurrentView('dashboard');
-                setSelectedTrip(null);
+      setDbError(null); // Reset error on new user
+      const unsubscribeTrips = subscribeToTrips(
+        user.id, 
+        (updatedTrips) => {
+          setTrips(updatedTrips);
+          setDbError(null);
+          
+          if (selectedTrip) {
+              const updatedSelected = updatedTrips.find(t => t.id === selectedTrip.id);
+              if (updatedSelected) {
+                  setSelectedTrip(updatedSelected);
+              } else if (currentView === 'trip-details') {
+                  setCurrentView('dashboard');
+                  setSelectedTrip(null);
+              }
+          }
+        },
+        (error) => {
+            console.error("Trips access error:", error);
+            if (error.code === 'permission-denied') {
+                setDbError("Erro de Permissão: Configure as regras do Firestore no console do Firebase.");
+            } else {
+                setDbError("Erro de conexão com o banco de dados.");
             }
         }
-      });
+      );
       return () => unsubscribeTrips();
     } else {
       setTrips([]);
+      setDbError(null);
     }
-  }, [user, selectedTrip?.id]); // Depend on ID to ensure we update the specific object
+  }, [user, selectedTrip?.id]);
 
   const handleSearch = async (params: SearchParams) => {
     setSearchRequest(params);
@@ -87,7 +97,6 @@ const App: React.FC = () => {
   };
 
   const handleLoginSuccess = (loggedInUser: User) => {
-    // Auth state is handled by the subscription, just close modal
     setIsLoginOpen(false);
     setCurrentView('dashboard');
   };
@@ -95,7 +104,6 @@ const App: React.FC = () => {
   const handleUpdateProfile = async (updatedData: Partial<User>) => {
     if (user) {
       await updateUserProfile(user.id, updatedData);
-      // Local state update happens automatically via subscription
     }
   };
 
@@ -126,7 +134,7 @@ const App: React.FC = () => {
   const handleCreateTrip = async () => {
       if (!user) return;
       const newTrip: Trip = {
-          id: Date.now().toString(), // You can also let Firestore gen ID
+          id: Date.now().toString(),
           code: generateGroupCode(),
           name: 'Nova Viagem em Grupo',
           dates: 'A definir',
@@ -146,33 +154,18 @@ const App: React.FC = () => {
       };
       
       await createNewTrip(newTrip);
-      // Auto select newly created trip is tricky with async + snapshot, 
-      // but we can try setting it after a small delay or waiting for the snapshot update
+      // Wait slightly or just let the subscription handle it. 
+      // For immediate UI feedback, we can select it, but it might not be in 'trips' yet if offline.
       handleSelectTrip(newTrip); 
   };
 
   const handleJoinTrip = async (code: string) => {
       if (!user) return;
-      
-      // We need to find the trip in the DB (even if not in our local list yet)
-      // Since we subscribe to *all* trips in the service (conceptually) then filter, 
-      // strictly speaking, we need a query to find a trip by code. 
-      // For this implementation, let's assume `trips` state only contains MY trips.
-      // So we can't join a trip we don't see yet.
-      // FIX: In a real app, we'd query Firestore for `where("code", "==", code)`.
-      
-      // Let's implement a quick client-side check if we had access to all. 
-      // Since `subscribeToTrips` filters, we can't see the trip to join it.
-      // For this Demo with the Service Refactor, we will rely on a backend function concept,
-      // OR we just alert the user that this requires a specific Firestore query we haven't exposed in this snippet.
-      // To make it work for the user:
-      
-      alert("Para entrar em um grupo, peça ao administrador para adicionar seu email: " + user.email);
+      alert("Para entrar em um grupo, peça ao administrador para adicionar seu email: " + user.email + "\n\n(A funcionalidade de entrar via código requer configuração de Regras Avançadas no Firebase)");
   };
 
   const handleUpdateTrip = async (updatedTrip: Trip) => {
       await updateTripInDb(updatedTrip);
-      // Local state updates via snapshot
   };
 
   const handleDeleteTrip = async (tripId: string) => {
@@ -185,9 +178,6 @@ const App: React.FC = () => {
   if (authLoading) {
       return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-primary">Carregando...</div>;
   }
-
-  // Filter trips specific to the logged-in user is done in Service now
-  const userTrips = trips;
 
   return (
     <div className="min-h-screen bg-surface font-sans text-gray-800">
@@ -202,6 +192,18 @@ const App: React.FC = () => {
         }}
         onDashboardClick={handleDashboardClick}
       />
+
+      {/* Global Error Banner */}
+      {dbError && (
+        <div className="bg-red-50 border-b border-red-200 p-3 mt-20">
+            <div className="container mx-auto px-4 flex items-center justify-between text-red-700">
+                <div className="flex items-center gap-2">
+                    <AlertCircle size={20} />
+                    <span>{dbError}</span>
+                </div>
+            </div>
+        </div>
+      )}
 
       <LoginModal 
         isOpen={isLoginOpen} 
@@ -295,7 +297,7 @@ const App: React.FC = () => {
       {currentView === 'dashboard' && user && (
         <OrganizerDashboard 
           user={user} 
-          trips={userTrips}
+          trips={trips}
           onEditProfile={() => setIsEditProfileOpen(true)}
           onSelectTrip={handleSelectTrip}
           onCreateTrip={handleCreateTrip}

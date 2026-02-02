@@ -29,12 +29,15 @@ export const subscribeToAuth = (callback: (user: User | null) => void) => {
     if (firebaseUser) {
       // Fetch additional user data from Firestore
       try {
-        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        
         if (userDoc.exists()) {
           const userData = userDoc.data() as User;
           callback({ ...userData, id: firebaseUser.uid });
         } else {
-          // Fallback if doc doesn't exist yet
+          // Fallback: If doc doesn't exist, create a basic one.
+          // This avoids the UI getting stuck if the registration flow was interrupted.
           const fallbackUser: User = {
             id: firebaseUser.uid,
             email: firebaseUser.email || '',
@@ -42,13 +45,21 @@ export const subscribeToAuth = (callback: (user: User | null) => void) => {
             role: 'ORGANIZER',
             avatar: firebaseUser.photoURL || ''
           };
-          // Try to create it silently to fix future reads
-          await setDoc(doc(db, "users", firebaseUser.uid), fallbackUser);
+          
+          // Use setDoc with merge to be safe, though setDoc overwrites by default
+          await setDoc(userDocRef, fallbackUser, { merge: true });
           callback(fallbackUser);
         }
       } catch (error) {
         console.error("Auth fetch error:", error);
-        callback(null);
+        // Even if Firestore fails (permissions?), return the basic Auth info so user can at least see the app
+        callback({
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            name: firebaseUser.displayName || 'Usuário',
+            role: 'ORGANIZER',
+            avatar: firebaseUser.photoURL || ''
+        });
       }
     } else {
       callback(null);
@@ -72,6 +83,7 @@ export const registerUser = async (email: string, password: string, name: string
   };
 
   // Create User Document in Firestore
+  // Note: This matches the rule 'allow write: if request.auth.uid == userId'
   await setDoc(doc(db, "users", fbUser.uid), newUser);
 
   return newUser;
@@ -86,7 +98,6 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     return userDoc.data() as User;
   }
   
-  // Return basic info if doc missing
   return {
     id: fbUser.uid,
     email: fbUser.email || '',
@@ -104,7 +115,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>) => 
   const userRef = doc(db, "users", userId);
   await updateDoc(userRef, data);
   
-  // Update Auth Profile if name/avatar changed
+  // Update Auth Profile if needed
   if (auth.currentUser) {
      if (data.name || data.avatar) {
          await updateProfile(auth.currentUser, {
@@ -120,24 +131,35 @@ export const updateUserProfile = async (userId: string, data: Partial<User>) => 
 export const uploadFile = async (file: File): Promise<string> => {
   if (!auth.currentUser) throw new Error("Usuário não autenticado");
   
-  // Create a reference to 'images/unique_name'
   const filePath = `uploads/${auth.currentUser.uid}/${Date.now()}_${file.name}`;
   const storageRef = ref(storage, filePath);
   
-  // Upload
   const snapshot = await uploadBytes(storageRef, file);
-  
-  // Get URL
   return await getDownloadURL(snapshot.ref);
 };
 
 // --- Trips Management (Firestore) ---
 
+// Helper to ensure memberIds is always correctly populated for security rules
+const prepareTripForSave = (trip: Trip) => {
+  // Extract all userIds from members array
+  const ids = trip.members.map(m => m.userId).filter(id => !!id);
+  
+  // Remove duplicates and ensure it's an array of strings
+  const memberIds = [...new Set(ids)];
+
+  return {
+    ...trip,
+    memberIds: memberIds
+  };
+};
+
 // Real-time listener for trips
-export const subscribeToTrips = (userId: string, callback: (trips: Trip[]) => void) => {
-  // IMPORTANT: We use a compound query here. 
-  // 'memberIds' array-contains 'userId' ensures we only fetch trips we are part of.
-  // This matches standard Firestore Security Rules.
+export const subscribeToTrips = (userId: string, onSuccess: (trips: Trip[]) => void, onError?: (error: any) => void) => {
+  // Security Rule Compliance:
+  // We MUST filter by 'memberIds array-contains userId' because the rules say:
+  // allow read: if request.auth.uid in resource.data.memberIds;
+  // If we try to query ALL trips, the rules will reject it immediately.
   const q = query(
     collection(db, "trips"), 
     where("memberIds", "array-contains", userId)
@@ -145,29 +167,15 @@ export const subscribeToTrips = (userId: string, callback: (trips: Trip[]) => vo
   
   return onSnapshot(q, (snapshot) => {
     const myTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Trip));
-    callback(myTrips);
+    onSuccess(myTrips);
   }, (error) => {
-      console.error("Error subscribing to trips:", error);
-      // If permission denied, likely rules issue or index missing.
-      // Return empty array to avoid crashing UI.
-      callback([]); 
+      console.error("Firebase Subscription Error:", error);
+      if (onError) onError(error);
   });
 };
 
-const prepareTripForSave = (trip: Trip) => {
-  // Ensure memberIds matches members for indexing/security
-  return {
-    ...trip,
-    memberIds: trip.members.map(m => m.userId)
-  };
-};
-
-export const saveTrip = async (trip: Trip) => {
-  const tripData = prepareTripForSave(trip);
-  await setDoc(doc(db, "trips", trip.id), tripData);
-};
-
 export const createNewTrip = async (trip: Trip) => {
+  // Ensure we save the version with memberIds populated
   const tripData = prepareTripForSave(trip);
   await setDoc(doc(db, "trips", trip.id), tripData);
 };
@@ -190,7 +198,7 @@ export const generateGroupCode = (): string => {
   return result;
 };
 
-// Legacy support
+// Legacy stubs
 export const saveUserToStorage = () => {};
 export const getUserFromStorage = () => null;
 export const removeUserFromStorage = () => {};
