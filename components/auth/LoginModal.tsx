@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { User } from '../../types';
 import { Mail, Lock, Eye, EyeOff, User as UserIcon } from 'lucide-react';
+import { loginUser, registerUser } from '../../services/storageService';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -17,31 +18,40 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    // Simulation of API call
-    setTimeout(() => {
-      setIsLoading(false);
-      onLoginSuccess({
-        email: email,
-        name: isRegistering ? name : 'Organizador Demo', 
-        role: 'ORGANIZER'
-      });
-      // Reset state on close
-      setEmail('');
-      setPassword('');
-      setName('');
-      onClose();
-    }, 1000);
-  };
-
-  const handleDemoFill = () => {
-    setEmail('organizador@viajafacil.com');
-    setPassword('senha123');
-    if (isRegistering) setName('Organizador Exemplo');
+    try {
+        let user;
+        if (isRegistering) {
+            user = await registerUser(email, password, name);
+        } else {
+            user = await loginUser(email, password);
+        }
+        onLoginSuccess(user);
+        
+        // Reset
+        setEmail('');
+        setPassword('');
+        setName('');
+    } catch (err: any) {
+        console.error(err);
+        if (err.code === 'auth/email-already-in-use') {
+            setError('Este email já está cadastrado.');
+        } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+            setError('Email ou senha incorretos.');
+        } else if (err.code === 'auth/weak-password') {
+            setError('A senha deve ter pelo menos 6 caracteres.');
+        } else {
+            setError('Ocorreu um erro. Tente novamente.');
+        }
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -54,7 +64,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
         <div className="flex p-1 bg-gray-100 rounded-lg">
           <button
             type="button"
-            onClick={() => setIsRegistering(false)}
+            onClick={() => { setIsRegistering(false); setError(''); }}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
               !isRegistering ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -63,7 +73,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
           </button>
           <button
             type="button"
-            onClick={() => setIsRegistering(true)}
+            onClick={() => { setIsRegistering(true); setError(''); }}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
               isRegistering ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -74,6 +84,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100">
+                {error}
+            </div>
+        )}
+
         {isRegistering && (
           <div className="space-y-2 animate-fade-in">
             <label className="text-sm font-medium text-gray-700">Nome Completo</label>
@@ -111,11 +127,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <label className="text-sm font-medium text-gray-700">Senha</label>
-            {!isRegistering && (
-              <button type="button" className="text-xs text-primary hover:underline" onClick={() => alert('Email de recuperação enviado!')}>
-                Esqueceu a senha?
-              </button>
-            )}
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
@@ -142,16 +153,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
           <Button type="submit" className="w-full h-11" isLoading={isLoading}>
             {isRegistering ? 'Criar Conta Grátis' : 'Entrar'}
           </Button>
-        </div>
-        
-        <div className="text-center">
-          <button 
-            type="button" 
-            onClick={handleDemoFill}
-            className="text-xs text-gray-400 hover:text-primary transition-colors underline decoration-dashed"
-          >
-            Preencher dados de demonstração
-          </button>
         </div>
       </form>
     </Modal>

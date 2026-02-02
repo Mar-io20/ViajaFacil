@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Trip } from '../../types';
-import { Plus, Calendar, Map, Wallet, Settings, Users, ArrowRight, Edit2, User as UserIcon, LogIn, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Calendar, Map, Wallet, Settings, Users, ArrowRight, Edit2, User as UserIcon, LogIn, Trash2, AlertTriangle, PieChart, TrendingUp, CheckCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 
@@ -46,156 +46,200 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   return (
     <div className="container mx-auto px-4 py-8 mt-20 animate-fade-in">
       {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden flex items-center justify-center shrink-0">
-            {user.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-            ) : (
-              <UserIcon size={32} className="text-gray-400" />
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900">Olá, {user.name}!</h1>
-              <button 
-                onClick={onEditProfile}
-                className="text-gray-400 hover:text-primary transition-colors p-1 rounded-full hover:bg-gray-100"
-                title="Editar Perfil"
-              >
-                <Edit2 size={18} />
-              </button>
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-white shadow-sm overflow-hidden flex items-center justify-center shrink-0">
+                {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                <UserIcon size={32} className="text-gray-400" />
+                )}
             </div>
-            <p className="text-gray-600 mt-1">
-              {user.phone ? (
-                <span className="flex items-center gap-2">
-                  <span className="text-sm bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-100">{user.phone}</span>
-                  <span className="text-gray-300">|</span>
-                  <span>Painel de controle</span>
-                </span>
-              ) : (
-                "Painel de controle das suas viagens em grupo."
-              )}
+            <div>
+                <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">Olá, {user.name}</h1>
+                <button 
+                    onClick={onEditProfile}
+                    className="text-gray-400 hover:text-primary transition-colors p-1.5 rounded-full hover:bg-gray-50"
+                    title="Editar Perfil"
+                >
+                    <Edit2 size={16} />
+                </button>
+                </div>
+                <p className="text-gray-500 text-sm mt-1">
+                Gerencie seus grupos e controle suas finanças de viagem.
+                </p>
+            </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+                <form onSubmit={handleJoin} className="flex gap-2">
+                    <input 
+                    type="text" 
+                    placeholder="CÓDIGO" 
+                    maxLength={6}
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    className="px-3 py-2 border border-gray-300 rounded-lg w-28 text-center tracking-widest uppercase font-bold text-sm focus:ring-2 focus:ring-primary outline-none"
+                    />
+                    <Button type="submit" variant="secondary" className="px-4">
+                    Entrar
+                    </Button>
+                </form>
+                <Button onClick={onCreateTrip}>
+                <Plus size={18} className="mr-2" />
+                Nova Viagem
+                </Button>
+            </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-blue-50 p-3 rounded-lg text-blue-600"><Map size={24} /></div>
+          <div>
+            <span className="text-gray-500 text-sm font-medium">Viagens Ativas</span>
+            <p className="text-2xl font-bold text-gray-900">{trips.length}</p>
+          </div>
+        </div>
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-green-50 p-3 rounded-lg text-green-600"><Wallet size={24} /></div>
+          <div>
+            <span className="text-gray-500 text-sm font-medium">Orçamento Total</span>
+            <p className="text-2xl font-bold text-gray-900">
+                R$ {trips.reduce((acc, t) => acc + t.budget, 0).toLocaleString('pt-BR')}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-            <form onSubmit={handleJoin} className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Código do Grupo" 
-                  maxLength={6}
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  className="px-3 py-2 border border-gray-300 rounded-lg w-36 text-center tracking-widest uppercase font-bold text-sm focus:ring-2 focus:ring-primary outline-none"
-                />
-                <Button type="submit" variant="secondary" className="px-3">
-                  <LogIn size={18} />
-                </Button>
-            </form>
-            <Button onClick={onCreateTrip}>
-              <Plus size={20} className="mr-2" />
-              Nova Viagem
-            </Button>
+         <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-purple-50 p-3 rounded-lg text-purple-600"><Users size={24} /></div>
+          <div>
+            <span className="text-gray-500 text-sm font-medium">Total de Membros</span>
+            <p className="text-2xl font-bold text-gray-900">
+                {trips.reduce((acc, t) => acc + t.members.length, 0)}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Stats Cards - Static for now, could be dynamic based on trips */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-500 font-medium">Viagens Ativas</span>
-            <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><Map size={20} /></div>
-          </div>
-          <span className="text-2xl font-bold">{trips.length}</span>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-500 font-medium">Orçamento Total</span>
-            <div className="bg-yellow-100 p-2 rounded-lg text-yellow-600"><Wallet size={20} /></div>
-          </div>
-          <span className="text-2xl font-bold">R$ {trips.reduce((acc, t) => acc + t.budget, 0).toLocaleString('pt-BR')}</span>
-        </div>
-         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-2">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-500 font-medium">Próxima Atividade</span>
-            <div className="bg-purple-100 p-2 rounded-lg text-purple-600"><Calendar size={20} /></div>
-          </div>
-          <span className="text-lg font-medium text-gray-800">Check-in Voo 3421 - Amanhã 14:00</span>
-        </div>
+      {/* Active Trips List - Redesigned as Control Panels */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <TrendingUp size={20} className="text-primary" />
+            Painel de Controle
+        </h2>
       </div>
 
-      {/* Active Trips List */}
-      <h2 className="text-xl font-bold text-gray-800 mb-4">Minhas Viagens</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {trips.length === 0 && (
-            <div className="col-span-full text-center py-10 bg-gray-50 rounded-xl">
-                <p className="text-gray-500 mb-4">Você ainda não tem viagens.</p>
+            <div className="col-span-full text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Map size={32} className="text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhuma viagem encontrada</h3>
+                <p className="text-gray-500 mb-6">Comece planejando sua próxima aventura em grupo.</p>
                 <Button onClick={onCreateTrip} variant="outline">Criar meu primeiro grupo</Button>
             </div>
         )}
 
-        {trips.map((trip) => (
-          <div key={trip.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-2 ${
-                  trip.status === 'planning' ? 'bg-blue-100 text-blue-700' : 
-                  trip.status === 'booked' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {trip.status === 'planning' ? 'Planejamento' : trip.status === 'booked' ? 'Confirmado' : 'Concluído'}
-                </span>
-                <h3 className="text-lg font-bold text-gray-900">{trip.name}</h3>
-                {trip.ownerId === user.id && <span className="text-xs text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded ml-2">Líder</span>}
-              </div>
-              
-              <div className="flex gap-1">
-                {/* Only Show Delete for Leader */}
-                {trip.ownerId === user.id && (
-                  <Button 
-                    variant="ghost" 
-                    className="text-gray-400 hover:text-red-500 hover:bg-red-50"
-                    onClick={() => setTripToDelete(trip)}
-                    title="Excluir Grupo"
-                  >
-                    <Trash2 size={20} />
-                  </Button>
-                )}
-                <Button variant="ghost" className="text-gray-400">
-                  <Settings size={20} />
-                </Button>
-              </div>
-            </div>
+        {trips.map((trip) => {
+            // Calculate Financial Progress
+            const progress = trip.budget > 0 ? (trip.spent / trip.budget) * 100 : 0;
+            const isOverBudget = progress > 100;
             
-            <div className="space-y-2 mb-6">
-              <div className="flex items-center text-gray-600 text-sm">
-                <Calendar size={16} className="mr-2 text-primary" />
-                {trip.dates}
-              </div>
-              <div className="flex items-center text-gray-600 text-sm">
-                <Users size={16} className="mr-2 text-primary" />
-                {trip.members.length} membros
-              </div>
-            </div>
+            return (
+                <div key={trip.id} className="bg-white rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col">
+                    {/* Card Header */}
+                    <div className="p-6 pb-4 border-b border-gray-50">
+                        <div className="flex justify-between items-start mb-3">
+                            <div className="flex flex-col">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit mb-2 ${
+                                    trip.status === 'planning' ? 'bg-blue-100 text-blue-700' : 
+                                    trip.status === 'booked' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                }`}>
+                                    {trip.status === 'planning' ? 'Em Planejamento' : trip.status === 'booked' ? 'Confirmado' : 'Concluído'}
+                                </span>
+                                <h3 className="text-xl font-bold text-gray-900 leading-tight">{trip.name}</h3>
+                            </div>
+                            
+                            <div className="flex gap-1">
+                                {trip.ownerId === user.id && (
+                                <button 
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    onClick={() => setTripToDelete(trip)}
+                                    title="Excluir Grupo"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                                )}
+                                <button className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <Settings size={18} />
+                                </button>
+                            </div>
+                        </div>
 
-            <div className="flex gap-3">
-              <Button className="flex-1" variant="outline" onClick={() => onSelectTrip(trip)}>Gerenciar Roteiro</Button>
-              <Button className="flex-1" onClick={() => onSelectTrip(trip)}>
-                Ver Detalhes <ArrowRight size={16} className="ml-2" />
-              </Button>
-            </div>
-          </div>
-        ))}
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <div className="flex items-center gap-1.5">
+                                <Calendar size={16} className="text-gray-400" />
+                                {trip.dates}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <Users size={16} className="text-gray-400" />
+                                {trip.members.length} viajantes
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Financial Control Section */}
+                    <div className="px-6 py-5 bg-gray-50/50 flex-1">
+                        <div className="flex justify-between items-end mb-2">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Controle Financeiro</span>
+                            <span className={`text-xs font-bold ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
+                                {Math.round(progress)}% do orçamento
+                            </span>
+                        </div>
+                        
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2 overflow-hidden">
+                            <div 
+                                className={`h-2.5 rounded-full transition-all duration-500 ${isOverBudget ? 'bg-red-500' : 'bg-primary'}`} 
+                                style={{ width: `${Math.min(progress, 100)}%` }}
+                            ></div>
+                        </div>
+                        
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">
+                                Gasto: <span className="font-semibold text-gray-900">R$ {trip.spent?.toLocaleString('pt-BR') || '0'}</span>
+                            </span>
+                            <span className="text-gray-400">/ R$ {trip.budget.toLocaleString('pt-BR')}</span>
+                        </div>
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="p-4 border-t border-gray-100 bg-white mt-auto grid grid-cols-2 gap-3">
+                        <Button variant="outline" onClick={() => onSelectTrip(trip)} className="justify-center text-sm h-10">
+                            <PieChart size={16} className="mr-2" />
+                            Gestão
+                        </Button>
+                        <Button onClick={() => onSelectTrip(trip)} className="justify-center text-sm h-10">
+                            Abrir Grupo
+                            <ArrowRight size={16} className="ml-2" />
+                        </Button>
+                    </div>
+                </div>
+            );
+        })}
         
-        {/* Add New Placeholder */}
+        {/* Add New Quick Action */}
         <button 
             onClick={onCreateTrip}
-            className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-primary hover:text-primary hover:bg-teal-50 transition-all group min-h-[200px]"
+            className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-primary hover:text-primary hover:bg-teal-50/30 transition-all group min-h-[250px]"
         >
-          <div className="bg-gray-50 group-hover:bg-white p-4 rounded-full mb-3 transition-colors">
-            <Plus size={32} />
+          <div className="bg-white group-hover:bg-white shadow-sm border border-gray-100 p-4 rounded-full mb-3 transition-colors">
+            <Plus size={32} className="text-gray-300 group-hover:text-primary transition-colors" />
           </div>
-          <span className="font-medium">Criar novo grupo de viagem</span>
+          <span className="font-semibold">Criar novo grupo</span>
+          <span className="text-xs mt-1 text-gray-400">Comece do zero</span>
         </button>
       </div>
 
@@ -230,7 +274,7 @@ const DeleteConfirmationModal: React.FC<{
             <h4 className="text-red-800 font-bold text-sm">Ação Irreversível</h4>
             <p className="text-red-700 text-sm mt-1">
               Você está prestes a excluir o grupo <strong>{trip.name}</strong>. 
-              Isso removerá todos os membros, roteiros e anexos permanentemente.
+              Isso removerá todos os membros, roteiros e dados financeiros permanentemente.
             </p>
           </div>
         </div>

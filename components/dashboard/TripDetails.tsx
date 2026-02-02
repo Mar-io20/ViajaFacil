@@ -66,8 +66,13 @@ export const TripDetails: React.FC<TripDetailsProps> = ({ trip, currentUser, onB
   };
 
   const handleAddMember = (name: string, email: string) => {
+      // If email is provided, generate a consistent ID so this user can log in later and match this profile
+      const generatedId = email 
+        ? `user-${email.replace(/[^a-zA-Z0-9]/g, '')}` 
+        : `manual-${Date.now()}`;
+
       const newMember: Member = {
-          userId: `manual-${Date.now()}`,
+          userId: generatedId,
           name: name,
           email: email,
           role: 'MEMBER',

@@ -36,6 +36,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         const url = await uploadFile(file);
         setAvatar(url);
       } catch (error) {
+        console.error(error);
         alert("Erro ao carregar imagem");
       } finally {
         setIsLoading(false);
@@ -43,19 +44,23 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
-      onSave({
+    try {
+      await onSave({
         name,
         phone,
         avatar
       });
-      setIsLoading(false);
       onClose();
-    }, 500);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao salvar perfil");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

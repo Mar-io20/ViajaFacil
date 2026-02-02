@@ -70,7 +70,9 @@ export interface Trip {
   dates: string;
   status: 'planning' | 'booked' | 'completed';
   budget: number;
+  spent: number; // New field for financial control
   ownerId: string;
   members: Member[];
+  memberIds?: string[]; // Helper for Firestore Security Rules query
   itinerary: ItineraryItem[];
 }
