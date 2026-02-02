@@ -49,12 +49,13 @@ const App: React.FC = () => {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [searchRequest, setSearchRequest] = useState<SearchParams | null>(null);
 
-  // If user is already logged in on load, go to dashboard
+  // If user is already logged in on load, check if we need to redirect
   useEffect(() => {
-    if (user && window.location.hash !== '#home') {
-       // Optional: Redirect logic if needed, currently keeping simple
-    }
-  }, []);
+    // If we have a user and we are on the root, maybe we stay on home or go to dashboard?
+    // For now, let's respect the current view state initialization which is 'home' unless changed.
+    // But if we wanted to auto-redirect to dashboard:
+    // if (user) setCurrentView('dashboard');
+  }, [user]);
 
   // Helper to persist trips
   const updateTripsState = (newTrips: Trip[]) => {
@@ -80,15 +81,30 @@ const App: React.FC = () => {
   };
 
   const handleLoginSuccess = (loggedInUser: User) => {
-    // Generate a pseudo-random ID for new users if not the demo user to allow simulating multiple distinct users
+    // Generate ID based on email to ensure returning users get the same ID
     const isDemoUser = loggedInUser.email === 'organizador@viajafacil.com';
-    const userWithId = { 
-      ...loggedInUser, 
-      id: isDemoUser ? '1' : `user-${loggedInUser.email.replace(/[^a-zA-Z0-9]/g, '')}`
-    };
+    const generatedId = isDemoUser ? '1' : `user-${loggedInUser.email.replace(/[^a-zA-Z0-9]/g, '')}`;
     
-    setUser(userWithId);
-    saveUserToStorage(userWithId); // Save persistence
+    let finalUser = { 
+      ...loggedInUser, 
+      id: generatedId 
+    };
+
+    // Attempt to recover user details (Name/Avatar) from existing trips if this is a simple login (not registration)
+    // The LoginModal sends 'Organizador Demo' as a default name for logins.
+    if (finalUser.name === 'Organizador Demo' && !isDemoUser) {
+        const existingMemberInfo = trips
+            .flatMap(t => t.members)
+            .find(m => m.userId === generatedId);
+            
+        if (existingMemberInfo) {
+            finalUser.name = existingMemberInfo.name;
+            finalUser.avatar = existingMemberInfo.avatar;
+        }
+    }
+    
+    setUser(finalUser);
+    saveUserToStorage(finalUser);
 
     if (!searchRequest) {
       setCurrentView('dashboard');
@@ -100,6 +116,27 @@ const App: React.FC = () => {
       const newUser = { ...user, ...updatedData };
       setUser(newUser);
       saveUserToStorage(newUser); // Save persistence
+
+      // Synchronize profile changes with all trips where the user is a member
+      const updatedTrips = trips.map(trip => {
+          const memberIndex = trip.members.findIndex(m => m.userId === newUser.id);
+          if (memberIndex >= 0) {
+              const updatedMembers = [...trip.members];
+              updatedMembers[memberIndex] = {
+                  ...updatedMembers[memberIndex],
+                  name: newUser.name,
+                  avatar: newUser.avatar,
+                  email: newUser.email
+              };
+              return { ...trip, members: updatedMembers };
+          }
+          return trip;
+      });
+
+      // Only update state if something changed to avoid unnecessary re-renders/saves
+      if (JSON.stringify(updatedTrips) !== JSON.stringify(trips)) {
+          updateTripsState(updatedTrips);
+      }
     }
   };
 
@@ -138,7 +175,14 @@ const App: React.FC = () => {
           status: 'planning',
           budget: 0,
           ownerId: user.id,
-          members: [{ userId: user.id, name: user.name, avatar: user.avatar, role: 'LEADER', canEdit: true }],
+          members: [{ 
+              userId: user.id, 
+              name: user.name, 
+              email: user.email, 
+              avatar: user.avatar, 
+              role: 'LEADER', 
+              canEdit: true 
+          }],
           itinerary: []
       };
       
@@ -162,7 +206,17 @@ const App: React.FC = () => {
 
           const updatedTrip = {
               ...trip,
-              members: [...trip.members, { userId: user.id, name: user.name, avatar: user.avatar, role: 'MEMBER' as const, canEdit: false }]
+              members: [
+                  ...trip.members, 
+                  { 
+                      userId: user.id, 
+                      name: user.name, 
+                      email: user.email,
+                      avatar: user.avatar, 
+                      role: 'MEMBER' as const, 
+                      canEdit: false 
+                  }
+              ]
           };
           
           const newTripsList = trips.map(t => t.id === trip.id ? updatedTrip : t);
