@@ -25,6 +25,7 @@ export interface SearchResultItem {
 }
 
 export interface User {
+  id: string; // Added ID for permission checks
   email: string;
   name: string;
   role: 'ORGANIZER' | 'MEMBER';
@@ -32,10 +33,44 @@ export interface User {
   phone?: string;
 }
 
+export interface Member {
+  userId: string;
+  name: string;
+  email?: string; // Added optional email for identification
+  avatar?: string;
+  role: 'LEADER' | 'COORDINATOR' | 'MEMBER';
+  canEdit: boolean; // Permission flag
+}
+
+export type ItineraryType = 'FLIGHT' | 'STAY' | 'CAR' | 'ACTIVITY';
+
+export interface ItineraryItem {
+  id: string;
+  type: ItineraryType;
+  title: string;
+  date: string;
+  details: {
+    location?: string; // For Stay/Activity
+    flightNumber?: string; // For Flight
+    seat?: string; // For Flight
+    carModel?: string; // For Car
+    provider?: string; // Airline, Rental Company, Hotel Name
+  };
+  attachments?: {
+    name: string;
+    url: string; // URL or Base64
+    type: 'BOARDING_PASS' | 'VOUCHER' | 'OTHER';
+  }[];
+}
+
 export interface Trip {
   id: string;
+  code: string; // 6-char code for joining
   name: string;
   dates: string;
   status: 'planning' | 'booked' | 'completed';
   budget: number;
+  ownerId: string;
+  members: Member[];
+  itinerary: ItineraryItem[];
 }
